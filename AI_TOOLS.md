@@ -2,7 +2,8 @@
 
 ## Gemini
 
-Used for: Initial project setup (init.sql, requirements.txt)
+Used for: Initial project setup (init.sql, requirements.txt), generate mock data,
+
 
 Divergences:
 - It initially gave me larger datatypes like INTEGER/NUMERIC, but I shortened it

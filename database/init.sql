@@ -14,7 +14,7 @@ CREATE TABLE location_evaluation (
     -- Pipeline status
     -- status can be P (pending), D (done), A (anomaly), E (error)
     status      CHAR(1) NOT NULL DEFAULT 'P',
-    updated_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_geom ON location_evaluation USING GIST (geom);

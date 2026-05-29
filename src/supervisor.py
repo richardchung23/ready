@@ -17,7 +17,7 @@ class SupervisorAgent:
         Base all final assessments stricly on the outputs from the tools. 
         """
 
-    def evaluate_loc(self, lat: float, lon: float):
+    def evaluate_loc(self, lat: float, lon: float, location_id):
         pass
 
 if __name__ == "__main__":
