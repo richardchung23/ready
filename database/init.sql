@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE TABLE location_evaluation (
     location_id VARCHAR PRIMARY KEY,
     geom        GEOMETRY(Point, 4326) NOT NULL,
+    geoid_cb    VARCHAR,
 
     tcc_percentage      SMALLINT,
     elevation           REAL,       -- ground elevation
@@ -19,3 +20,4 @@ CREATE TABLE location_evaluation (
 
 CREATE INDEX idx_geom ON location_evaluation USING GIST (geom);
 CREATE INDEX idx_status ON location_evaluation (status);
+CREATE INDEX idx
