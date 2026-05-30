@@ -6,6 +6,7 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
     print("Starting batch processing...")
     db_pool = get_db_pool()
     conn = None
+    MIN_ELEVATION_ANGLE_DEG = 20.0
 
     query = """
         UPDATE location_evaluation AS l
@@ -18,7 +19,7 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
             status = v.final_status,
             updated_at = now()
         FROM (VALUES %s) AS v(
-            location_id, tcc_percentage, elevation, obstruction_height, obstruction_angle, risk_tier, status, updated_at
+            location_id, tcc_percentage, elevation, obstruction_height, obstruction_angle, risk_tier, final_status
         )
         WHERE l.location_id = v.location_id;
     """
@@ -56,7 +57,7 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
                 obstruction_angle = float((tcc_percentage * 0.4) % 40)
                 obstruction_height = elevation + (tcc_percentage * 0.3)
 
-                if obstruction_angle < 20.0:
+                if obstruction_angle < MIN_ELEVATION_ANGLE_DEG:
                     tier = 'A'
                 elif obstruction_angle <= 35.0:
                     tier = 'B'
@@ -64,7 +65,7 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
                     tier = 'C'
 
                 updates.append((
-                    loc_id, tcc_percentage, obstruction_height, obstruction_angle, tier, 'D'
+                    loc_id, tcc_percentage, elevation, obstruction_height, obstruction_angle, tier, 'D'
                 ))
 
             with conn.cursor() as cursor:

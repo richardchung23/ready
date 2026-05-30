@@ -1,7 +1,7 @@
 import csv
 import psycopg2
 from psycopg2 import extras
-from tools_data import get_db_pool
+from data_tool import get_db_pool
 
 def bulk_ingest_locations(csv_filepath: str, batch_size: int = 10000):
     """

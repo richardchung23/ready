@@ -3,15 +3,7 @@ Agent geospatial pipeline that finds locations that may be obstructed for satell
 broadband. Shows Starlink coverage for ~4.6M locations.
 
 # Architecture
-```mermaid
-graph TD
-    A[locations.csv 4.6M rows] -->|ingest_csv.py| B[(PostGIS Database)]
-    B <-->|run_analysis.py| C{Batch Math Engine}
-    
-    D[State Broadband Officer] -->|Natural Language| E[Claude Supervisor Agent]
-    E <-->|Tool Use: calculate_los| B
-    E -->|Plain English Report| D
-```
+Check out docs/ARCHITECTURE.md
 
 Boundaries:
 - The supervisor agent is the one that orchestrates the whole thing. It calls the
@@ -51,14 +43,16 @@ python src/supervisor.py
 
 - Chose a "centralized" based approach as prompt mentions to have clear 
 boundaries and is also easier to parallelize workers at scale. A single agent
-handling everything could stall: if API call fails, then you would lose everything
+handling everything could stall: if API call fails, then you would lose everything.
+I would not revisit this.
 
 - Used PostGIS for its spatial indexing, and it also allowed for geometry ops.
-May go back if portability becomes an issue.
+May revisit if portability becomes an issue.
 
 - Preloaded APIs over web search. This was to make it deterministic and has no
-rate limit risk
+rate limit risk. I would not revisit this.
 
 - Batch SQL updates over per row calls. This decreases token cost drastically.
+I would not revisit this.
 
-- Bulk inserts to make it faster
+- Bulk inserts to make it faster. I would not revisit this.

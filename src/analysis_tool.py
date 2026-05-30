@@ -10,7 +10,7 @@ def calculate_los(
         dish_height: float = 2.0
     )-> Dict[str, Any]: 
     
-
+    MIN_ELEVATION_ANGLE_DEG = 20.0
     total_dish_elev = dish_elev + dish_height
     total_obstacle_elev = obstruction_elev + canopy_height
 
@@ -34,7 +34,8 @@ def calculate_los(
     angle_rad = math.atan(height / obstruction_dist)
     angle = round(math.degrees(angle_rad), 2)
 
-    if angle > 20.0:
+    result["obstruction_angle"] = angle 
+    if angle > MIN_ELEVATION_ANGLE_DEG:
         result["risk_tier"] = "C"
         result["reason"] = f"Obstruction angle ({angle}) exceeds 20 degree threshold."
     elif angle > 15:
