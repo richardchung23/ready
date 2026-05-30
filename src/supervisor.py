@@ -99,3 +99,18 @@ class SupervisorAgent:
 
 if __name__ == "__main__":
     agent = SupervisorAgent()
+    
+    # NOTE: In the production pipeline, this prompt text is programmatically constructed 
+    # by the Data Sourcing Agent querying the database. It is hardcoded here strictly 
+    # for testing the Supervisor Agent in isolation.
+    test_prompt = (
+        "Please evaluate location 40023115. Here is the sourced environmental data: "
+        "The house is at an elevation of 210 meters. "
+        "There is a dense tree patch 15 meters away. "
+        "The ground elevation at the tree patch is 212 meters, "
+        "and the global canopy model shows those trees are 18 meters tall."
+    )
+    
+    final_assessment = agent.evaluate_location(test_prompt)
+    print("================ FINAL OFFICER EXPLANATION ================")
+    print(final_assessment)

@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: broadband_risk_db
+    environment:
+      POSTGRES_USER: ready_user
+      POSTGRES_PASSWORD: ready_password
+      POSTGRES_DB: broadband_risk
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+    # Performance tuning parameters for large-scale ingestion/indexing
+    command: >
+      postgres 
+      -c shared_buffers=512MB 
+      -c work_mem=64MB 
+      -c max_wal_size=4GB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ready_user -d broadband_risk"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
