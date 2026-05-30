@@ -2,7 +2,8 @@ import os
 import json
 from dotenv import load_dotenv
 import anthropic
-from data_tool import calculate_los
+from data_tool import fetch_location_data
+from analysis_tool import calculate_los
 
 load_dotenv()
 
@@ -22,6 +23,17 @@ class SupervisorAgent:
 
         self.tools = [
             {
+                "name": "fetch_environmental_data",
+                "description": "Fetches ground elevation, canopy cover, and canopy height for a given location from the database and raster sources.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location_id": {"type": "string"}
+                    },
+                    "required": ["location_id"]
+                }
+            },
+            {
                 "name": "calculate_los",
                 "description": "Calculates if physical obstacles block the 20-degree satellite line of sight. Use this to determine the broadband risk tier.",
                 "input_schema": {
@@ -29,10 +41,10 @@ class SupervisorAgent:
                     "properties": {
                         "dish_elev": {"type": "number", "description": "Ground elevation at the dish location in meters."},
                         "obstruction_elev": {"type": "number", "description": "Ground elevation of the nearest obstacle in meters."},
-                        "canopy_height": {"type": "number", "description": "Height of the tree canopy in meters."},
-                        "obstruction_dist": {"type": "number", "description": "Distance from the dish to the obstacle in meters."}
+                        "obstruction_dist": {"type": "number", "description": "Distance from the dish to the obstacle in meters."},
+                        "canopy_height": {"type": "number", "description": "Height of the tree canopy in meters."}
                     },
-                    "required": ["dish_elev", "obstruction_elev", "canopy_height", "obstruction_dist"]
+                    "required": ["dish_elev", "obstruction_elev", "obstruction_dist", "canopy_height"]
                 }
             }
         ]
@@ -65,7 +77,9 @@ class SupervisorAgent:
             print(f"Supervisor routed to tool: {tool_name}")
             print(f"Inputs extracted: {json.dumps(tool_inputs)}\n")
 
-            if tool_name == "calculate_los":
+            if tool_name == "fetch_location_data":
+                result = fetch_location_data(tool_inputs.get("location_id"))
+            elif tool_name == "calculate_los":
                 result = calculate_los(**tool_inputs)
             else:
                 result = {"error": f"Unknown tool requested: {tool_name}"}
@@ -94,7 +108,7 @@ class SupervisorAgent:
         if iterations >= MAX_ITERATION:
             return "Analysis failed: Agent reached max number of iterations"
         
-        return result.content[0].text
+        return response.content[0].text
 
 
 if __name__ == "__main__":

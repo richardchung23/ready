@@ -2,3 +2,5 @@
 env/
 venv/
 ENV/
+locations.csv
+*.csv

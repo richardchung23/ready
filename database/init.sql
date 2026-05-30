@@ -20,4 +20,4 @@ CREATE TABLE location_evaluation (
 
 CREATE INDEX idx_geom ON location_evaluation USING GIST (geom);
 CREATE INDEX idx_status ON location_evaluation (status);
-CREATE INDEX idx
+CREATE INDEX idx_geoid ON location_evaluation (geoid_cb);
