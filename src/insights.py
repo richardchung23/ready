@@ -106,8 +106,9 @@ def create_insight():
         ax2.pie(pie_counts, labels=pie_labels, colors=pie_colors, autopct='%1.1f%%', startangle=90)
         ax2.set_title('Risk Tier Distribution (%)', fontsize=14, pad=15)
 
-        os.makedirs('../docs', exist_ok=True)
-        output_path = '../docs/risk_distribution.png'
+        docs_dir = os.path.join(os.path.dirname(__file__), "../docs")
+        os.makedirs(docs_dir, exist_ok=True)
+        output_path = os.path.join(docs_dir, "risk_distribution.png")
         plt.tight_layout()
         plt.savefig(output_path)
         plt.close(fig)

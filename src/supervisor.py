@@ -122,7 +122,7 @@ if __name__ == "__main__":
     agent = SupervisorAgent()
     
     test_prompt = (
-        "Please run a full  risk assessment for location id: 40023115"
+        "Please run a full risk assessment for location id: 40023115"
     )
     
     final_assessment = agent.evaluate_location(test_prompt)

@@ -1,3 +1,4 @@
+import os
 import csv
 import psycopg2
 from psycopg2 import extras
@@ -51,6 +52,9 @@ def bulk_ingest_locations(csv_filepath: str, batch_size: int = 10000):
                         rows_processed += len(batch)
                         print(f"Inserted {rows_processed} rows...")
                         batch.clear()
+
+                    if rows_processed >= 50:
+                        break
                 
                 # Insert any remaining rows in the final partial batch
                 if batch:
@@ -73,4 +77,6 @@ def bulk_ingest_locations(csv_filepath: str, batch_size: int = 10000):
 
 if __name__ == "__main__":
     # Ensure locations file is named correctly and in the right folder
-    bulk_ingest_locations("../locations.csv")
+    script_dir = os.path.dirname(__file__)
+    csv_path = os.path.join(script_dir, "../locations.csv")
+    bulk_ingest_locations(csv_path, batch_size=1000)

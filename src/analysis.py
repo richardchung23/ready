@@ -52,9 +52,15 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
 
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT location_id, ST_Y(geom), ST_X(geom)
-                    FROM location_evaluation
-                    WHERE status = 'P'
+                    SELECT 
+                        l.location_id, 
+                        ST_Y(l.geom) as lat, 
+                        ST_X(l.geom) as lon,
+                        COALESCE(ST_Value(r.rast, l.geom), 0) as real_tcc
+                    FROM location_evaluation l
+                    LEFT JOIN nlcd_tcc r 
+                      ON ST_Intersects(r.rast, l.geom)
+                    WHERE l.status = 'P'
                     LIMIT %s;
                 """, (chunk_size,))
 
@@ -65,17 +71,18 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
                 break
 
             updates = []
-            for loc_id, lat, lon in records:
-                tcc_percentage = int((abs(lat) * 100) % 60)
+            for loc_id, lat, lon, tcc in records:
+                tcc_percentage = int(tcc)
+
+                if elevation < 0 or tcc_percentage < 0 or tcc_percentage > 100:
+                    updates.append((loc_id, None, None, None, None, None, 'A'))
+                    continue
+                tcc_percentage = max(0, min(tcc, 100))
                 if USE_LIVE_API:
                     elevation = fetch_elevation(lat, lon)
                     time.sleep(0.1)
                 else:
                     elevation = 200.0
-
-                if elevation < 0 or tcc_percentage < 0 or tcc_percentage > 100:
-                    updates.append((loc_id, None, None, None, None, None, 'A'))
-                    continue
 
                 obstruction_angle = float((tcc_percentage * 0.4) % 40)
                 obstruction_height = elevation + (tcc_percentage * 0.3)
@@ -113,4 +120,4 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
             db_pool.putconn(conn)
 
 if __name__ == "__main__":
-    process_batch_analysis()
+    process_batch_analysis(max_batches=10)

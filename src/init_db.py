@@ -23,6 +23,7 @@ def setup_database():
         conn = db_pool.getconn()
         with conn.cursor() as cursor:
             cursor.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
+            cursor.execute("CREATE EXTENSION IF NOT EXISTS postgis_raster;")
             cursor.execute(query)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_geom ON location_evaluation USING GIST (geom);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_status ON location_evaluation (status);")

@@ -36,7 +36,9 @@ python src/init_db.py
 
 python src/process_csv.py
 
-python src/run_analysis.py
+python src/analysis.py
+
+python src/insights.py
 
 python src/supervisor.py
 ```
@@ -58,3 +60,5 @@ rate limit risk. I would not revisit this.
 I would not revisit this.
 
 - Bulk inserts to make it faster. I would not revisit this.
+
+- Decided to use mock data for TCC as it would be slow to 

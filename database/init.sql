@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS postgis_raster;
 
 CREATE TABLE location_evaluation (
     location_id VARCHAR PRIMARY KEY,
@@ -18,6 +19,6 @@ CREATE TABLE location_evaluation (
     updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_geom ON location_evaluation USING GIST (geom);
-CREATE INDEX idx_status ON location_evaluation (status);
-CREATE INDEX idx_geoid ON location_evaluation (geoid_cb);
+CREATE INDEX IF NOT EXISTS idx_geom ON location_evaluation USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_status ON location_evaluation (status);
+CREATE INDEX IF NOT EXISTS idx_geoid ON location_evaluation (geoid_cb);
