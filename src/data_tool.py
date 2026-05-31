@@ -4,7 +4,7 @@ from psycopg2 import pool
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
 _db_pool = None
 
@@ -97,7 +97,7 @@ def fetch_location_data(location_id: str) -> Dict[str, Any]:
     except psycopg2.Error as e:
         if conn is not None:
             conn.rollback()
-        return {"error": f"Datbase failed to read {location_id}: {str(e)}"}
+        return {"error": f"Database failed to read {location_id}: {str(e)}"}
     
     finally:
         if conn is not None:

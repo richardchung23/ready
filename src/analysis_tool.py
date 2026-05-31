@@ -28,7 +28,7 @@ def calculate_los(
     
     height = total_obstacle_elev - total_dish_elev
     if height <= 0:
-        result["reason"] = "Sky is clear."
+        result["reason"] = "Obstruction is below or level with dish. Sky is clear."
         return result
     
     angle_rad = math.atan(height / obstruction_dist)

@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ready_password
       POSTGRES_DB: broadband_risk
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       - pgdata:/var/lib/postgresql/data

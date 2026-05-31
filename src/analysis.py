@@ -1,8 +1,27 @@
+import os
 import time
+import requests
 from data_tool import get_db_pool
 from psycopg2.extras import execute_values
 
+USE_LIVE_API = os.getenv("USE_LIVE_API", "false").lower() == "true"
+
+def fetch_elevation(lat: float, lon: float) -> float:
+    url = "https://epqs.nationalmap.gov/v1/json"
+    params = {"x": lon, "y": lat, "wkid": 4326, "includeDate": "false"}
+    try:
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        return float(response.json()["value"])
+    except Exception as e:
+        print(f"USGS API error for ({lat}, {lon}): {e}")
+        return -1.0
+
 def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
+    if USE_LIVE_API and chunk_size > 100:
+        chunk_size = 100
+        print("Live API mode: chunk size is capped to 100 for rate limits.")
+
     print("Starting batch processing...")
     db_pool = get_db_pool()
     conn = None
@@ -48,7 +67,11 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
             updates = []
             for loc_id, lat, lon in records:
                 tcc_percentage = int((abs(lat) * 100) % 60)
-                elevation = float((abs(lon) * 150) % 500)
+                if USE_LIVE_API:
+                    elevation = fetch_elevation(lat, lon)
+                    time.sleep(0.1)
+                else:
+                    elevation = 200.0
 
                 if elevation < 0 or tcc_percentage < 0 or tcc_percentage > 100:
                     updates.append((loc_id, None, None, None, None, None, 'A'))

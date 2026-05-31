@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE TABLE location_evaluation (
     location_id VARCHAR PRIMARY KEY,
     geom        GEOMETRY(Point, 4326) NOT NULL,
-    geoid_cb    VARCHAR,
+    geoid_cb    VARCHAR(20),
 
     tcc_percentage      SMALLINT,
     elevation           REAL,       -- ground elevation

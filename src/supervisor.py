@@ -5,7 +5,7 @@ import anthropic
 from data_tool import fetch_location_data
 from analysis_tool import calculate_los
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
 class SupervisorAgent:
     def __init__(self):
@@ -24,7 +24,7 @@ class SupervisorAgent:
         self.tools = [
             {
                 "name": "fetch_location_data",
-                "description": "Fetches ground elevation, canopy cover, and canopy height for a given location from the database and raster sources.",
+                "description": "Retrieves pre-computed geospatial evaluation parameters for a given location UUID from the database, including ground elevation, tree canopy cover percentage, and total obstruction height.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -35,7 +35,14 @@ class SupervisorAgent:
             },
             {
                 "name": "calculate_los",
-                "description": "Calculates if physical obstacles block the 20-degree satellite line of sight. Use this to determine the broadband risk tier.",
+                "description": (
+                    "Calculates if physical obstacles block the 20-degree satellite line of sight. "
+                    "CRITICAL: Map the outputs from fetch_location_data to this tool's parameters exactly as follows: "
+                    "1. Map 'elevation' to 'dish_elev'. "
+                    "2. Map 'obstruction_height' to 'obstruction_elev'. "
+                    "3. Always set 'canopy_height' to 0 (since tree height is already integrated into obstruction_elev). "
+                    "4. Always default 'obstruction_dist' to 15.0 unless explicitly told otherwise."
+                ),
                 "input_schema": {
                     "type": "object",
                     "properties": {

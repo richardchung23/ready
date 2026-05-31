@@ -32,6 +32,8 @@ pip install -r requirements.txt
 
 cp .env.example .env
 
+python src/init_db.py
+
 python src/process_csv.py
 
 python src/run_analysis.py
