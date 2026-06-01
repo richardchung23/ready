@@ -22,8 +22,20 @@ Tree Canopy Cover (TCC) percentage tells you how much of the ground is covered
 by a canopy, but could not be too accurate on a dish's connection. An example 
 scenario is a low TCC percentage (like 20%), but it is uphill. Then, the trees
 uphill of the dish would block the dish significantly more. Thus, I used LOS,
-which incorporates both the height of the obstruction 
-and its distance from the dish to compute a precise angular measurement.
+which incorporates both the height of the obstruction and its distance from the 
+dish to compute a precise angular measurement.
+
+## Why not other approaches?
+We cannot use the Starlink app as it requires physical access with a device. It
+cannot be applied remotely across 4.6M locations. Our approach approximates the 
+same assessment using publicly available data.
+
+We also did not use building footprint datasets for a couple of reasons. First,
+I felt that the target population is mostly rural, where more nature would block
+the dish. Second, integrating building heights requires either a separate raster 
+join or a nearest-neighbor vector query against polygon footprints, adding 
+complexity and straining on resources. Also, building heights are not included 
+in the datasets and would actually require another source.
 
 
 # 3. Clarifying Risk Tiers
@@ -42,6 +54,18 @@ or could not work.
 
 
 # 4. Data Sources
+## Dataset to Obstruction Factor Mapping
+
+| Dataset | Source | Obstruction Factor |
+|---------|--------|--------------------|
+| USGS 3DEP Elevation | USGS National Map API | Terrain height — needed to compute relative elevation difference between dish and nearby obstacles |
+| NLCD Tree Canopy Cover | MRLC NLCD 2023 | Vegetation presence — guide identifies trees and foliage as a primary source of signal interruption |
+
+The install guide does not quantify obstruction angles numerically. The 20° 
+threshold used in this analysis is sourced from Starlink's FCC licensing 
+documentation, confirmed by PCMag's coverage of the ruling. The guide's physical 
+description of required sky visibility translates directly to this geometric threshold.
+
 I decided to only directly call USGS for ground elevation in order to calculate 
 LOS. When USE_LIVE_API is true, the pipeline queries the USGS API for each 
 location's elevation in meters. This is free and is simple.
@@ -62,12 +86,34 @@ to how TCC is handled.
 Note TCC and canopy height are different as TCC only tells you if there are trees
 nearby.
 
+## Data Quality Issues Found
+
+The locations CSV was compiled from multiple provider submissions over several 
+filing periods, which introduced several quality concerns:
+
+Duplicate locations: Multiple providers may have committed to serve the same 
+location, resulting in duplicate location_ids across submissions. Handled via 
+`ON CONFLICT (location_id) DO NOTHING` in the ingestion query — only the first 
+occurrence is retained.
+
+Malformed rows: Some rows contained non-numeric latitude/longitude values or 
+missing required fields. Handled via per-row try/except guards in process_csv.py 
+that skip and log malformed rows without crashing the pipeline.
+
+Missing geoid_cb: The Census Block GEOID column did not seem to be 
+missing in the dataset, but is treated as optional defensively — 
+`row.get('geoid_cb')` defaults to None rather than raising a KeyError in case 
+it is absent in future provider submissions.
+
+No coordinate validation: Latitude and longitude values are cast to float but 
+not validated against realistic US bounds. A production system would reject 
+coordinates outside the continental US bounding box.
 
 # 5. Limitations
 - We assume the dish is always 2 meters off the ground. However, they can be
 mounted at different heights (ground, roof, or on a tall pole). A higher mount
 would be more clear of obstructions but more difficult to install. Our assumption
-is conservative but could be wrong on many installations.
+is conservative but could be wrong on many installations. This cannot be determined remotely.
 
 - We also assume the nearest obstacle is 15 meters away. This is a 
 conservative default representing a typical residential setback. In reality, 
@@ -78,12 +124,13 @@ dataset to get the real distance.
 - We only look at nearest obstacle. In reality, it needs clear view in multiple
 directions. A complete implementation would check full 360 degree sky.
 
-- When running in batch mode with API, elevation defaults to 200 meters for all
+- When running in batch mode without live API, elevation defaults to 200 meters for all
 locations. So, locations in mountainous terrain versus flatlands will have different
 possible obstructions that this placeholder cannot capture.
 
 - We cannot see what is on the roof. So, things like chimneys, HVAC unit, skylights,
 etc, can all cause interruptions. Only a physical visit can confirm these things.
+This cannot be determined remotely.
 
 - Federal elevation API is unreliable at scale. Even during testing, the USGS API
 timed out on many requests, enough to harm the data produced. This is a limitation
