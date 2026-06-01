@@ -17,11 +17,11 @@ data and analysis tools and then translates it back to the user in plain English
 
 | Tier | Obstruction Angle | English |
 | --- | --- | --- |
-| A | < 20 deg | Clear line of sight, low risk |
-| B | 20 - 35 deg | Marginal clearance, medium risk |
-| C | > 35 deg | Obstructions in the way, high risk |
+| A | < 15 deg | Clear line of sight, low risk |
+| B | 15 - 20 deg | Marginal clearance, medium risk |
+| C | > 20 deg | Obstructions in the way, high risk |
 
-The 20 deg threshold came from
+The 20 deg threshold came from PCMag reporting on Starlink's minimum elevation angles.
 
 
 # Installations/Setup
@@ -54,4 +54,6 @@ I would not revisit this.
 
 - Bulk inserts to make it faster. I would not revisit this.
 
-- Decided to use mock data for TCC as it would be slow to 
+- Decided to use NLCD TCC raster data directly in PostGIS via spatial joins 
+instead of per-row API calls to external services. This avoids 4.6M individual 
+database round-trips per batch, keeping the pipeline faster.

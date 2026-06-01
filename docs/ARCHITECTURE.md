@@ -26,7 +26,7 @@ graph TD
     
     subgraph "Agentic Tier (Interactive/Validation)"
         Supervisor[supervisor.py]
-        Claude[Claude 3.5 Haiku LLM]
+        Claude[Claude Haiku LLM]
     end
 
     %% Data Flow
@@ -51,3 +51,4 @@ graph TD
     %% Human Intervention
     PostGIS -.->|Anomalies Identified| User
     User -.->|Manual Override| PostGIS
+```
