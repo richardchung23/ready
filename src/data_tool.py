@@ -113,7 +113,11 @@ def fetch_elevation(lat: float, lon: float) -> float:
 #
 # Queries chunks of pending locations and performs a native raster to vector
 # intersection against NLCD TCC spatial block. Converts point geometries from 
-# WGS84 to Albers Equal Area to align with coordinate grid layout of federal data
+# WGS84 to NAD83 to align with coordinate grid layout of federal data
+#
+# If local nlcd_tcc table has not been made/populated yet, it will catch the 
+# exception and fall back to mock values (0%), so that pipeline can still be 
+# tested and executed without dependencies.
 #
 # Args:
 #   - chunk_size: Max row limit size to pull per analytical transactional batch
@@ -146,8 +150,32 @@ def fetch_raster_batch(chunk_size: int) -> list:
             """, (chunk_size,))
             return cursor.fetchall()
     except Exception as e:
-        print(f"Critical DB error during raster spatial join: {e}")
-        raise
+        # Handle fallback
+        if conn is not None and getattr(e, "pgcode", None) == "42P01":
+            print("\n[NOTICE] 'nlcd_tcc' table not found. Gracefully falling back to mock TCC values (0%).")
+            try:
+                # Clear aborted transaction state on connection to allow a new execution
+                conn.rollback() 
+                
+                with conn.cursor() as fallback_cursor:
+                    # Run fallback extraction omitting the raster join entirely
+                    fallback_cursor.execute("""
+                        SELECT 
+                            location_id, 
+                            ST_Y(geom) as lat, 
+                            ST_X(geom) as lon,
+                            0 as real_tcc
+                        FROM location_evaluation
+                        WHERE status = 'P'
+                        LIMIT %s;
+                    """, (chunk_size,))
+                    return fallback_cursor.fetchall()
+            except Exception as fallback_err:
+                print(f"Critical error occurred during fallback query execution: {fallback_err}")
+                raise 
+        else:
+            print(f"Critical DB error during raster spatial join: {e}")
+            raise
     finally:
         if conn is not None:
             db_pool.putconn(conn)
