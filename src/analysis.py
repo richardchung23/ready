@@ -10,7 +10,7 @@ import os
 import time
 import requests
 from data_tool import get_db_pool, fetch_raster_batch, fetch_elevation
-from analysis_tool import evaluate_risk
+from analysis_tool import calculate_los
 from psycopg2.extras import execute_values
 
 # Toggle to switch between API usage and local batch testing
@@ -64,7 +64,6 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
         batches_processed = 0
 
         while batches_processed < max_batches:
-            batches_processed += 1
             start = time.time()
 
             # Fetch raw parameters with data_tool
@@ -72,6 +71,8 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
             if not records:
                 print("All pending records were evaluated.")
                 break
+
+            batches_processed += 1
 
             updates = []
             for loc_id, lat, lon, tcc in records:
@@ -83,12 +84,17 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
                     elevation = 200.0 # Clean baseline for testing
 
                 # Data quality guard / failure handling
-                if elevation < 0 or tcc < 0 or tcc > 100:
+                if elevation < 0 or tcc is None or tcc < 0 or tcc > 100:
                     updates.append((loc_id, None, None, None, None, None, 'A'))
                     continue
 
                 # Pass clean data to logic layer
-                metrics = evaluate_risk(int(tcc), elevation)
+                metrics = calculate_los(
+                    dish_elev=elevation,
+                    obstruction_elev=elevation + (int(tcc) * 0.3),
+                    obstruction_dist=15.0,
+                    canopy_height=0
+                )
 
                 updates.append((
                     loc_id, int(tcc), elevation, metrics["obstruction_height"], 
