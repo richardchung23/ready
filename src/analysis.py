@@ -1,22 +1,36 @@
+# analysis.py
+#
+# This file serves as the pipeline orchestrator for LOS calculations. This file
+# contains no direct SQL queries, raw coordinates, or mathematical formulas, thus
+# keeping clear boundaries. Instead, it coordinates the workflow by pulling data 
+# from data_tool and passing
+# parameters into analytical_tool.
+
 import os
 import time
 import requests
-from data_tool import get_db_pool
+from data_tool import get_db_pool, fetch_raster_batch, fetch_elevation
+from analysis_tool import evaluate_risk
 from psycopg2.extras import execute_values
 
+# Toggle to switch between API usage and local batch testing
 USE_LIVE_API = os.getenv("USE_LIVE_API", "false").lower() == "true"
 
-def fetch_elevation(lat: float, lon: float) -> float:
-    url = "https://epqs.nationalmap.gov/v1/json"
-    params = {"x": lon, "y": lat, "wkid": 4326, "includeDate": "false"}
-    try:
-        response = requests.get(url, params=params, timeout=5)
-        response.raise_for_status()
-        return float(response.json()["value"])
-    except Exception as e:
-        print(f"USGS API error for ({lat}, {lon}): {e}")
-        return -1.0
-
+# Executes risk evaluation workflow in continuous DB transactions. It pulls
+# pending records, coordinates external data augmentation (if enabled), 
+# runs the core evaluation logic, and performs bulk state updates.
+#
+# Args:
+#   - chunk_size (optional): Number of rows processed per DB cycle. Optimizes memory overhead.
+#                            Defaults to 25000
+#   - max_batches (optional): Strict limit to prevent infinite loops. Defaults to 1000.
+#
+# Returns:
+#   - None: mutates DB directly
+#
+# Raises:
+#   - Exception: Rolls back active transaction and surfaces traceback if batch
+#                encounters critical failure
 def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
     if USE_LIVE_API and chunk_size > 100:
         chunk_size = 100
@@ -25,8 +39,9 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
     print("Starting batch processing...")
     db_pool = get_db_pool()
     conn = None
-    MIN_ELEVATION_ANGLE_DEG = 20.0
 
+    # Query for high speed builk updates. Utilizing FROM (VALUES) alias executes
+    # much quicker than looping individual UPDATE statements
     query = """
         UPDATE location_evaluation AS l
         SET
@@ -44,60 +59,43 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
     """
 
     try:
+        # Check out connection from global pool
         conn = db_pool.getconn()
         batches_processed = 0
+
         while batches_processed < max_batches:
             batches_processed += 1
             start = time.time()
 
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT 
-                        l.location_id, 
-                        ST_Y(l.geom) as lat, 
-                        ST_X(l.geom) as lon,
-                        COALESCE(ST_Value(r.rast, l.geom), 0) as real_tcc
-                    FROM location_evaluation l
-                    LEFT JOIN nlcd_tcc r 
-                      ON ST_Intersects(r.rast, l.geom)
-                    WHERE l.status = 'P'
-                    LIMIT %s;
-                """, (chunk_size,))
-
-                records = cursor.fetchall()
-
+            # Fetch raw parameters with data_tool
+            records = fetch_raster_batch(chunk_size)
             if not records:
                 print("All pending records were evaluated.")
                 break
 
             updates = []
             for loc_id, lat, lon, tcc in records:
-                tcc_percentage = int(tcc)
-
-                if elevation < 0 or tcc_percentage < 0 or tcc_percentage > 100:
-                    updates.append((loc_id, None, None, None, None, None, 'A'))
-                    continue
-                tcc_percentage = max(0, min(tcc, 100))
+                # Sourcing external data via data_tool
                 if USE_LIVE_API:
                     elevation = fetch_elevation(lat, lon)
-                    time.sleep(0.1)
+                    time.sleep(0.1) # Respect upstream throughput limits
                 else:
-                    elevation = 200.0
+                    elevation = 200.0 # Clean baseline for testing
 
-                obstruction_angle = float((tcc_percentage * 0.4) % 40)
-                obstruction_height = elevation + (tcc_percentage * 0.3)
+                # Data quality guard / failure handling
+                if elevation < 0 or tcc < 0 or tcc > 100:
+                    updates.append((loc_id, None, None, None, None, None, 'A'))
+                    continue
 
-                if obstruction_angle < MIN_ELEVATION_ANGLE_DEG:
-                    tier = 'A'
-                elif obstruction_angle <= 35.0:
-                    tier = 'B'
-                else:
-                    tier = 'C'
+                # Pass clean data to logic layer
+                metrics = evaluate_risk(int(tcc), elevation)
 
                 updates.append((
-                    loc_id, tcc_percentage, elevation, obstruction_height, obstruction_angle, tier, 'D'
+                    loc_id, int(tcc), elevation, metrics["obstruction_height"], 
+                    metrics["obstruction_angle"], metrics["risk_tier"], 'D'
                 ))
 
+            # Commit results back to state
             with conn.cursor() as cursor:
                 execute_values(
                     cursor, query, updates, template="(%s, %s, %s, %s, %s, %s, %s)"
@@ -111,13 +109,15 @@ def process_batch_analysis(chunk_size: int = 25000, max_batches: int = 1000):
             print("Max batch limit exceeded")
 
     except Exception as e:
+        # If pipeline crashes, rollback current uncommitted batch
         if conn is not None:
             conn.rollback()
         raise Exception("Execution failed during analytical batching") from e
     
     finally:
+        # Guaranteed to execute safely: return the connection to the pool
         if conn is not None:
             db_pool.putconn(conn)
 
 if __name__ == "__main__":
-    process_batch_analysis(max_batches=10)
+    process_batch_analysis(chunk_size=100, max_batches=10)

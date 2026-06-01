@@ -27,19 +27,12 @@ The 20 deg threshold came from
 # Installations/Setup
 ```bash
 docker-compose up -d
-
 pip install -r requirements.txt
-
 cp .env.example .env
-
 python src/init_db.py
-
 python src/process_csv.py
-
 python src/analysis.py
-
 python src/insights.py
-
 python src/supervisor.py
 ```
 

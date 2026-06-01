@@ -1,8 +1,11 @@
+# Database Infrastructure and Schema Initialization
+
 import psycopg2
 from data_tool import get_db_pool
 
 def setup_database():
     print("Initializing database...")
+    # Define core table, with an explicit WGS84 declaration
     query = """
         CREATE TABLE IF NOT EXISTS location_evaluation (
             location_id VARCHAR PRIMARY KEY,
@@ -22,13 +25,18 @@ def setup_database():
     try:
         conn = db_pool.getconn()
         with conn.cursor() as cursor:
+            # Enable GIS
             cursor.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
             cursor.execute("CREATE EXTENSION IF NOT EXISTS postgis_raster;")
+
+            # Build primary table
             cursor.execute(query)
+
+            # Build spatial and operational indexes
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_geom ON location_evaluation USING GIST (geom);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_status ON location_evaluation (status);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_geoid ON location_evaluation (geoid_cb);")
-        conn.commit()
+        conn.commit() # Save schema changes
         print("Schema created successfully.")
 
     except Exception as e:
@@ -37,6 +45,7 @@ def setup_database():
         print(f"Failed to create schema: {e}")
 
     finally:
+        # Guarantee connection is added back to pool
         if conn is not None:
             db_pool.putconn(conn)
 

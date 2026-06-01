@@ -24,6 +24,7 @@ scenario is a low TCC percentage (like 20%), but it is uphill. Then, the trees
 uphill of the dish would block the dish significantly more. Thus, I used LOS,
 which includes the height of the obstruction and LOS.
 
+
 3. Clarifying Risk Tiers
 I defined a location to be at risk if the nearest obstacle creates an angle
 greater than 15 degrees (will clarify between 15 and 20 degrees below).
@@ -38,23 +39,27 @@ Main thing to know is that C tier means something is blocking dish's view, A tie
 has no nearby objects obstructing the view, and B tier is a bit gray; it could 
 or could not work.
 
+
 4. Data Sources
 After convsering with Gemini, I decided to only directly call USGS for ground
 elevation in order to calculate LOS. When USE_LIVE_API is true, the pipeline queries
 the USGS API for each location's elevation in meters. This is free and is simple.
 
-We decided to omit TCC data and canopy height for the demo to keep it fast. Right
-now, TCC is generated using a deterministic formula based on latitude. 
+For Tree Canopy Cover (TCC), rather than calling a remote API, I downloaded the
+publicly available National Land Cover Database (NLCD) raster from MRLC and loaded
+it into PostGIS. During batch analysis, TCC values are extracted via a single
+spatial join per batch rather than per row lookups. This avoids 4.6M individual
+database round-trips per batch and keeps Python layer lightweight.
 
-In production, this would be replaced by a query to National Land Cover Database
-(NLCD) raster from MRLC. In order to query it, you would have to download the 
-entire raster file, which is around 2GB for US, load it into PostGIS, and query it.
+We decided to omit canopy height data for the demo. 
 
-Canopy height would come from GLAD Global Canopy Height Model or Microsoft's 
-Canopy Height Model, also queried locally via PostGIS.
+In production, canopy height would come from GLAD Global Canopy Height Model or Microsoft's 
+Canopy Height Model, loaded into PostGIS, and queried locally via PostGIS, similar
+to TCC.
 
 Note TCC and canopy height are different as TCC only tells you if there are trees
 nearby.
+
 
 5. Limitations
 - We assume the dish is always 2 meters off the ground. However, they can be
